@@ -39,6 +39,18 @@
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "root": "src/app",
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "f15c24c1-14a2-4858-91ac-dab96d4a7d20"
+      }
+    },
+    "owner": "mishats-team"
   }
 }
