@@ -1,0 +1,25 @@
+appId: com.ribongrant.calendar
+productName: Ribongrant Calendar
+asar: true
+asarUnpack:
+  - "**/*.node"
+files:
+  - dist/**/*
+  - server/**/*
+  - electron/**/*
+  - package.json
+  - node_modules/**/*
+win:
+  signAndEditExecutable: false
+  target:
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+directories:
+  buildResources: public
+  output: dist_electron
+npmRebuild: false
+buildDependenciesFromSource: false
