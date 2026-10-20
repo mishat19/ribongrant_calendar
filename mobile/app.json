@@ -4,7 +4,7 @@
     "slug": "ribongrant-calendar",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ribongrant_rounded.png",
     "scheme": "ribocal",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -22,7 +22,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/ribongrant_rounded.png"
     },
     "plugins": [
       [

@@ -42,7 +42,7 @@ export function TimeGrid({ days, itemsByDay, width, theme, onSlotPress, onEventP
       {Array.from({ length: 25 }, (_, hour) => (
         <View
           key={`line-${hour}`}
-          style={[styles.hourLine, { top: hour * HOUR_HEIGHT, width: width - GUTTER, left: GUTTER, borderColor: theme.hourLine }]}
+          style={[styles.hourLine, hour % 2 === 0 ? null : styles.halfHourLine, { top: hour * HOUR_HEIGHT, width: width - GUTTER, left: GUTTER, borderColor: theme.hourLine }]}
         />
       ))}
       {Array.from({ length: 24 }, (_, hour) =>
@@ -104,6 +104,9 @@ const styles = StyleSheet.create({
   hourLine: {
     position: 'absolute',
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  halfHourLine: {
+    opacity: 0.35,
   },
   hourLabel: {
     position: 'absolute',

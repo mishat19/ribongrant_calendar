@@ -87,10 +87,11 @@ export default function EventEditorScreen() {
   const [saving, setSaving] = useState(false);
 
   const setStartDate = (date: Date) => {
-    const duration = Math.max(0, end.getTime() - start.getTime());
+    const duration = end.getTime() - start.getTime();
+    const fallback = allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
     const next = allDay ? startOfDay(date) : date;
     setStart(next);
-    setEnd(new Date(next.getTime() + duration));
+    setEnd(new Date(next.getTime() + (duration > 0 ? duration : fallback)));
   };
 
   const setEndDate = (date: Date) => {

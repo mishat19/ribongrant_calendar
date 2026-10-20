@@ -53,7 +53,8 @@ export function TimeView({ cursor, mode, itemsByDayKey, theme, onSlotPress, onEv
     [days, itemsByDayKey]
   );
 
-  const allDayRows = Math.max(1, Math.max(...allDayByDay.map((list) => list.length)));
+  const hasAllDay = allDayByDay.some((list) => list.length > 0);
+  const allDayRows = hasAllDay ? Math.max(1, Math.max(...allDayByDay.map((list) => list.length))) : 0;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -82,27 +83,29 @@ export function TimeView({ cursor, mode, itemsByDayKey, theme, onSlotPress, onEv
         })}
       </View>
 
-      <View style={[styles.allDayStrip, { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth, height: allDayRows * 26 + 8 }]}>
-        <View style={{ width: GUTTER }} />
-        {days.map((day, dayIndex) => (
-          <View
-            key={`ad-${day.toISOString()}`}
-            style={[styles.allDayColumn, { borderLeftColor: theme.border, borderLeftWidth: StyleSheet.hairlineWidth }]}
-          >
-            {allDayByDay[dayIndex].map((item) => (
-              <Pressable
-                key={`${item.event.id}-${item.occurrence.start.toISOString()}`}
-                onPress={() => onEventPress(item)}
-                style={[styles.allDayChip, { backgroundColor: item.event.color }]}
-              >
-                <Text numberOfLines={1} style={styles.allDayText}>
-                  {item.event.title}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ))}
-      </View>
+      {hasAllDay ? (
+        <View style={[styles.allDayStrip, { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth, height: allDayRows * 26 + 8 }]}>
+          <View style={{ width: GUTTER }} />
+          {days.map((day, dayIndex) => (
+            <View
+              key={`ad-${day.toISOString()}`}
+              style={[styles.allDayColumn, { borderLeftColor: theme.border, borderLeftWidth: StyleSheet.hairlineWidth }]}
+            >
+              {allDayByDay[dayIndex].map((item) => (
+                <Pressable
+                  key={`${item.event.id}-${item.occurrence.start.toISOString()}`}
+                  onPress={() => onEventPress(item)}
+                  style={[styles.allDayChip, { backgroundColor: item.event.color }]}
+                >
+                  <Text numberOfLines={1} style={styles.allDayText}>
+                    {item.event.title}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       <ScrollView
         ref={scrollRef}

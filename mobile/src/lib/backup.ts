@@ -50,11 +50,20 @@ export async function exportDatabase(db: SQLiteDatabase): Promise<ExportResult> 
 
   const canShare = await Sharing.isAvailableAsync();
   if (canShare) {
-    await Sharing.shareAsync(file.uri, {
-      mimeType: 'application/octet-stream',
-      dialogTitle: 'Partager la base de données Ribongrant Calendar',
-      UTI: 'public.database',
-    });
+    try {
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/octet-stream',
+        dialogTitle: 'Partager la base de données Ribongrant Calendar',
+        UTI: 'public.database',
+      });
+    } catch (err) {
+      const fallbackUri = file.uri.startsWith('file://') ? file.uri : `file://${file.uri}`;
+      await Sharing.shareAsync(fallbackUri, {
+        mimeType: 'application/octet-stream',
+        dialogTitle: 'Partager la base de données Ribongrant Calendar',
+        UTI: 'public.database',
+      });
+    }
   }
   return { uri: file.uri, fileName, size: bytes.byteLength, shared: canShare };
 }

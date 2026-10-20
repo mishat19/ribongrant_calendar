@@ -10,7 +10,9 @@ function daysInMonth(date: Date): number {
 function occurrenceEnd(start: Date, event: CalEvent): Date {
   const originalStart = new Date(event.start);
   const originalEnd = event.end ? new Date(event.end) : originalStart;
-  const durationMs = Math.max(0, originalEnd.getTime() - originalStart.getTime());
+  const rawMs = originalEnd.getTime() - originalStart.getTime();
+  const fallbackMs = event.allDay ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+  const durationMs = rawMs > 0 ? rawMs : fallbackMs;
   return new Date(start.getTime() + durationMs);
 }
 

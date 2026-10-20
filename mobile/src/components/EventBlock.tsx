@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { format } from 'date-fns';
 import type { AppTheme } from '../theme';
 import type { CalEvent, Occurrence } from '../domain/types';
 
@@ -138,20 +137,16 @@ export function EventBlock({ item, width, gutter, theme, onPress }: EventBlockPr
       <Text numberOfLines={1} style={[styles.title, { color: theme.text, fontSize: item.height > 40 ? 13 : 11 }]}>
         {item.event.title}
       </Text>
-      {item.height > 40 ? (
-        <Text numberOfLines={1} style={[styles.time, { color: theme.textSecondary }]}>
-          {format(item.clippedStart, 'HH:mm')} – {format(item.clippedEnd, 'HH:mm')}
-        </Text>
-      ) : null}
+      {item.height > 40 && item.assignedNames && item.assignedNames.length > 0
+        ? item.assignedNames.map((name) => (
+            <Text key={name} numberOfLines={1} style={[styles.summary, { color: theme.textSecondary }]}>
+              {name}
+            </Text>
+          ))
+        : null}
       {summary ? (
         <Text numberOfLines={1} style={[styles.summary, { color: theme.textSecondary }]}>
           {summary}
-        </Text>
-      ) : null}
-      {item.height > 70 && item.assignedNames && item.assignedNames.length > 0 ? (
-        <Text numberOfLines={1} style={[styles.summary, { color: theme.textSecondary }]}>
-          {item.assignedNames.slice(0, 2).join(', ')}
-          {item.assignedNames.length > 2 ? ` +${item.assignedNames.length - 2}` : ''}
         </Text>
       ) : null}
     </Pressable>
@@ -171,10 +166,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '600',
-  },
-  time: {
-    fontSize: 11,
-    marginTop: 1,
   },
   summary: {
     fontSize: 10,

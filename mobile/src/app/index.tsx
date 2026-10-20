@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { startOfDay } from 'date-fns';
+import { endOfDay, format, startOfDay } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { CalendarHeader } from '../components/CalendarHeader';
 import { BottomTabs, type TabId } from '../components/BottomTabs';
 import { MonthView, groupByDayKey } from '../components/MonthView';
@@ -15,10 +16,11 @@ import { SwipePager } from '../components/SwipePager';
 import { EventSheet } from '../components/EventSheet';
 import { EventAssignSheet } from '../components/EventAssignSheet';
 import type { EventItem } from '../components/EventBlock';
-import { addPeriod, atMinutes, headerTitle, rangeForView } from '../domain/dates';
+import { addPeriod, atMinutes, headerTitle, rangeForView, weekDays } from '../domain/dates';
 import { expandEvents } from '../domain/recurrence';
-import { eligibleMembers } from '../domain/availability';
-import { dateKey } from '../db/database';
+import { eligibleMembers, isoWeek } from '../domain/availability';
+import { dateKey, listEventsInRange } from '../db/database';
+import { shareWeekPlanningPdf, type PdfEventEntry } from '../lib/weekPdf';
 import { useEventsStore } from '../store/eventsStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useTeamStore } from '../store/teamStore';
@@ -138,6 +140,56 @@ export default function CalendarScreen() {
     setMemberFormVisible(true);
   }, []);
 
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const shareWeekPdf = useCallback(async () => {
+    if (exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      const days = weekDays(cursor);
+      const weekEvents = await listEventsInRange(db, days[0], endOfDay(days[6]));
+      const weekOccurrences = expandEvents(weekEvents, days[0], endOfDay(days[6]));
+      const entries: PdfEventEntry[] = [];
+      for (const occurrence of weekOccurrences) {
+        const event = weekEvents.find((e) => e.id === occurrence.eventId);
+        if (!event) continue;
+        const key = dateKey(occurrence.start);
+        const assigned = assignments
+          .filter((a) => a.eventId === event.id && a.occurrence === key)
+          .map((a) => members.find((m) => m.id === a.memberId))
+          .filter((m): m is Member => Boolean(m))
+          .map((m) => ({ name: m.name, color: m.color }));
+        entries.push({
+          title: event.title,
+          color: event.color,
+          start: occurrence.start,
+          end: occurrence.end,
+          allDay: occurrence.allDay,
+          availableCount: eligibleMembers(members, occurrence.start, occurrence.allDay).length,
+          totalMembers: members.length,
+          assigned,
+        });
+      }
+      await shareWeekPlanningPdf({
+        title: `Planning de la semaine ${isoWeek(days[0])}`,
+        subtitle: `Du ${format(days[0], 'EEEE d MMMM yyyy', { locale: fr })} au ${format(
+          days[6],
+          'EEEE d MMMM yyyy',
+          { locale: fr }
+        )}`,
+        days,
+        events: entries,
+      });
+    } catch (err) {
+      Alert.alert(
+        'Export du planning',
+        `Impossible de générer le PDF de la semaine.\n${err instanceof Error ? err.message : String(err)}`
+      );
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [cursor, db, assignments, members, exportingPdf]);
+
   return (
     <View style={[styles.root, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       <View style={styles.body}>
@@ -152,6 +204,7 @@ export default function CalendarScreen() {
               onToday={goToday}
               onViewChange={setView}
               onSearch={() => router.push('/search')}
+              onExportPdf={shareWeekPdf}
             />
             <SwipePager onNext={goNext} onPrev={goPrev} style={styles.pager}>
               {view === 'month' ? (

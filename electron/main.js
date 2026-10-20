@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain } from "electron";
 import { existsSync } from "node:fs";
+import { rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -50,6 +51,47 @@ async function startServer() {
   return actualPort;
 }
 
+function registerPdfIpc() {
+  ipcMain.handle("pdf:export", async (_event, payload) => {
+    const html = typeof payload?.html === "string" ? payload.html : "";
+    const defaultName =
+      typeof payload?.defaultName === "string" && payload.defaultName.trim()
+        ? payload.defaultName.trim()
+        : "planning.pdf";
+    if (!html) return { saved: false, error: "Contenu du planning vide." };
+
+    const hidden = new BrowserWindow({ show: false, width: 1200, height: 800 });
+    const tmpPath = path.join(
+      app.getPath("temp"),
+      `ribongrant-plan-${Date.now()}.html`,
+    );
+    try {
+      await writeFile(tmpPath, html, "utf8");
+      await hidden.loadFile(tmpPath);
+      const pdf = await hidden.webContents.printToPDF({
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+      const dialogOptions = {
+        title: "Enregistrer le planning (PDF)",
+        defaultPath: defaultName,
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      };
+      const { canceled, filePath } = mainWindow
+        ? await dialog.showSaveDialog(mainWindow, dialogOptions)
+        : await dialog.showSaveDialog(dialogOptions);
+      if (canceled || !filePath) return { saved: false };
+      await writeFile(filePath, pdf);
+      return { saved: true, path: filePath };
+    } catch (err) {
+      return { saved: false, error: String(err?.message || err) };
+    } finally {
+      hidden.destroy();
+      await rm(tmpPath, { force: true }).catch(() => undefined);
+    }
+  });
+}
+
 function createWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -59,6 +101,7 @@ function createWindow(port) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, "preload.cjs"),
     },
   });
 
@@ -84,6 +127,8 @@ function createWindow(port) {
 }
 
 app.whenReady().then(async () => {
+  registerPdfIpc();
+
   let port = PREFERRED_PORT;
   try {
     port = await startServer();

@@ -197,6 +197,8 @@ app.post("/api/events", (req, res) => {
     recurrence_until,
   } = req.body;
   if (!title || !start) return res.status(400).json({ error: "title and start are required" });
+  if (end && end <= start)
+    return res.status(400).json({ error: "end must be after start" });
   const info = eventInsert.run(
     title,
     description || null,
@@ -216,11 +218,15 @@ app.put("/api/events/:id", (req, res) => {
   if (!existing) return res.status(404).json({ error: "not found" });
   const { title, description, start, end, all_day, color, recurrence, recurrence_until } =
     req.body;
+  const nextStart = start ?? existing.start;
+  const nextEnd = end ?? existing.end;
+  if (nextEnd && nextEnd <= nextStart)
+    return res.status(400).json({ error: "end must be after start" });
   eventUpdate.run(
     title ?? existing.title,
     description ?? existing.description,
-    start ?? existing.start,
-    end ?? existing.end,
+    nextStart,
+    nextEnd,
     typeof all_day === "boolean" ? (all_day ? 1 : 0) : existing.all_day,
     color ?? existing.color,
     recurrence ?? existing.recurrence,

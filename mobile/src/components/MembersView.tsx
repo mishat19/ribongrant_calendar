@@ -36,6 +36,7 @@ export function MembersView({ theme, onEditMember }: MembersViewProps) {
 
   const [showMissions, setShowMissions] = useState(false);
   const [showData, setShowData] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [newMissionName, setNewMissionName] = useState('');
   const [newMissionEmoji, setNewMissionEmoji] = useState('');
@@ -126,34 +127,14 @@ export function MembersView({ theme, onEditMember }: MembersViewProps) {
         <Text style={[styles.heading, { color: theme.text }]}>Membres</Text>
         <View style={styles.toolbarActions}>
           <Pressable
-            onPress={() => setShowMissions(true)}
+            onPress={() => setShowMenu(true)}
             style={({ pressed }) => [
               styles.secondaryButton,
               { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
             ]}
           >
-            <MaterialCommunityIcons name="target" size={16} color={theme.textSecondary} />
-            <Text style={[styles.secondaryText, { color: theme.textSecondary }]}>Missions</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setShowData(true)}
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <MaterialCommunityIcons name="database-outline" size={16} color={theme.textSecondary} />
-            <Text style={[styles.secondaryText, { color: theme.textSecondary }]}>Données</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => onEditMember(null)}
-            style={({ pressed }) => [
-              styles.primaryButton,
-              { backgroundColor: theme.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <MaterialCommunityIcons name="plus" size={16} color={theme.onPrimary} />
-            <Text style={[styles.primaryText, { color: theme.onPrimary }]}>Nouveau</Text>
+            <MaterialCommunityIcons name="menu" size={16} color={theme.textSecondary} />
+            <Text style={[styles.secondaryText, { color: theme.textSecondary }]}>Menu</Text>
           </Pressable>
         </View>
       </View>
@@ -321,6 +302,43 @@ export function MembersView({ theme, onEditMember }: MembersViewProps) {
           </Text>
         </View>
       </Modal>
+
+      <Modal visible={showMenu} transparent animationType="fade" onRequestClose={() => setShowMenu(false)}>
+        <Pressable style={[styles.backdrop, { backgroundColor: theme.overlay }]} onPress={() => setShowMenu(false)} />
+        <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.sheetTitle, { color: theme.text }]}>Actions</Text>
+          <Pressable
+            onPress={() => {
+              setShowMenu(false);
+              setShowMissions(true);
+            }}
+            style={({ pressed }) => [styles.menuItem, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <MaterialCommunityIcons name="target" size={18} color={theme.text} />
+            <Text style={[styles.menuItemText, { color: theme.text }]}>Missions</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setShowMenu(false);
+              setShowData(true);
+            }}
+            style={({ pressed }) => [styles.menuItem, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <MaterialCommunityIcons name="database-outline" size={18} color={theme.text} />
+            <Text style={[styles.menuItemText, { color: theme.text }]}>Données (Importer/Exporter)</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setShowMenu(false);
+              onEditMember(null);
+            }}
+            style={({ pressed }) => [styles.menuItem, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <MaterialCommunityIcons name="plus" size={18} color={theme.text} />
+            <Text style={[styles.menuItemText, { color: theme.text }]}>Nouveau membre</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -426,4 +444,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dataButtonText: { fontSize: 14, fontWeight: '700' },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  menuItemText: { fontSize: 15, fontWeight: '500' },
 });
