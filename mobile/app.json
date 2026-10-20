@@ -38,7 +38,21 @@
           "color": "#1A73E8"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/ribongrant_rounded.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/ribongrant_rounded.png",
+            "backgroundColor": "#202124"
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {

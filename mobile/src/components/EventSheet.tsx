@@ -3,9 +3,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { AppTheme } from '../theme';
+import type { Member } from '../domain/types';
 import type { EventItem } from './EventBlock';
 import { formatEventTime } from '../domain/dates';
+import { dateKey } from '../db/database';
+import { eligibleMembers } from '../domain/availability';
 import { REMINDER_OPTIONS } from '../lib/notifications';
+import { useTeamStore } from '../store/teamStore';
 
 const RECURRENCE_LABELS: Record<string, string> = {
   none: 'Aucune récurrence',
@@ -17,16 +21,28 @@ const RECURRENCE_LABELS: Record<string, string> = {
 interface EventSheetProps {
   item: EventItem | null;
   theme: AppTheme;
+  members: Member[];
   onClose: () => void;
   onEdit: (item: EventItem) => void;
   onDelete: (item: EventItem) => void;
+  onAssign: (item: EventItem) => void;
 }
 
-export function EventSheet({ item, theme, onClose, onEdit, onDelete }: EventSheetProps) {
+export function EventSheet({ item, theme, members, onClose, onEdit, onDelete, onAssign }: EventSheetProps) {
+  const assignments = useTeamStore((s) => s.assignments);
   const event = item?.event;
   const reminderLabel = event
     ? REMINDER_OPTIONS.find((o) => o.value === event.reminderMinutes)?.label ?? 'Aucun'
     : '';
+
+  const occurrenceKey = item ? dateKey(item.occurrence.start) : '';
+  const assigned = item
+    ? assignments
+        .filter((a) => a.eventId === item.event.id && a.occurrence === occurrenceKey)
+        .map((a) => members.find((m) => m.id === a.memberId))
+        .filter((m): m is Member => Boolean(m))
+    : [];
+  const availableCount = item ? eligibleMembers(members, item.occurrence.start, event?.allDay ?? false).length : 0;
 
   return (
     <Modal visible={item != null} transparent animationType="fade" onRequestClose={onClose}>
@@ -55,6 +71,37 @@ export function EventSheet({ item, theme, onClose, onEdit, onDelete }: EventShee
             {event.description ? (
               <Text style={[styles.description, { color: theme.text }]}>{event.description}</Text>
             ) : null}
+
+            <View style={[styles.assignBlock, { borderTopColor: theme.border }]}>
+              <View style={styles.assignHeader}>
+                <MaterialCommunityIcons name="account-group-outline" size={18} color={theme.textSecondary} />
+                <Text style={[styles.assignTitle, { color: theme.textSecondary }]}>
+                  {availableCount}/{members.length} dispo · {assigned.length} assigné(s)
+                </Text>
+              </View>
+              {assigned.length > 0 ? (
+                <View style={styles.assignedChips}>
+                  {assigned.map((member) => (
+                    <View key={member.id} style={[styles.assignedChip, { backgroundColor: `${member.color}22`, borderColor: member.color }]}>
+                      <View style={[styles.dot, { backgroundColor: member.color }]} />
+                      <Text style={[styles.assignedText, { color: theme.text }]}>{member.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={[styles.noAssign, { color: theme.textFaint }]}>Personne assignée</Text>
+              )}
+              <Pressable
+                onPress={() => onAssign(item)}
+                style={({ pressed }) => [
+                  styles.assignButton,
+                  { backgroundColor: theme.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <MaterialCommunityIcons name="account-plus-outline" size={18} color={theme.onPrimary} />
+                <Text style={[styles.assignButtonText, { color: theme.onPrimary }]}>Assigner des membres</Text>
+              </Pressable>
+            </View>
 
             <View style={styles.actions}>
               <Pressable
@@ -116,7 +163,33 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   rowText: { fontSize: 13 },
   description: { fontSize: 14, marginTop: 6, lineHeight: 20 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  assignBlock: { marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  assignHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  assignTitle: { fontSize: 13, fontWeight: '600' },
+  assignedChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  assignedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  assignedText: { fontSize: 12, fontWeight: '500' },
+  noAssign: { fontSize: 12, marginTop: 8 },
+  assignButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 22,
+    paddingVertical: 11,
+    marginTop: 12,
+  },
+  assignButtonText: { fontSize: 14, fontWeight: '700' },
+  actions: { flexDirection: 'row', gap: 8, marginTop: 16, flexWrap: 'wrap' },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',

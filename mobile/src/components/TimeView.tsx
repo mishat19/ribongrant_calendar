@@ -6,7 +6,6 @@ import {
   Text,
   View,
   useWindowDimensions,
-  type ScrollViewInstance,
 } from 'react-native';
 import { format, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -26,7 +25,7 @@ interface TimeViewProps {
 
 export function TimeView({ cursor, mode, itemsByDayKey, theme, onSlotPress, onEventPress }: TimeViewProps) {
   const { width } = useWindowDimensions();
-  const scrollRef = useRef<ScrollViewInstance | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const days = useMemo(
     () => (mode === 'week' ? weekDays(cursor) : [new Date(cursor)]),
     [cursor, mode]

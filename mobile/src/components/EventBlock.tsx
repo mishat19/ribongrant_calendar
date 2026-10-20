@@ -6,6 +6,9 @@ import type { CalEvent, Occurrence } from '../domain/types';
 export interface EventItem {
   event: CalEvent;
   occurrence: Occurrence;
+  availableCount?: number;
+  totalMembers?: number;
+  assignedNames?: string[];
 }
 
 export interface PositionedEvent extends EventItem {
@@ -15,6 +18,9 @@ export interface PositionedEvent extends EventItem {
   height: number;
   clippedStart: Date;
   clippedEnd: Date;
+  availableCount?: number;
+  totalMembers?: number;
+  assignedNames?: string[];
 }
 
 const MINUTES_IN_DAY = 24 * 60;
@@ -66,6 +72,9 @@ export function layoutDayItems(items: EventItem[], day: Date, hourHeight: number
       result.push({
         event: item.event,
         occurrence: item.occurrence,
+        availableCount: item.availableCount,
+        totalMembers: item.totalMembers,
+        assignedNames: item.assignedNames,
         column: col,
         columns: total,
         top,
@@ -105,6 +114,11 @@ export function EventBlock({ item, width, gutter, theme, onPress }: EventBlockPr
   const tint = theme.dark ? item.event.color : item.event.color;
   const background = theme.dark ? `${item.event.color}33` : `${item.event.color}1F`;
 
+  const summary =
+    item.height > 60 && item.availableCount != null && item.totalMembers != null
+      ? `${item.availableCount}/${item.totalMembers} dispo`
+      : null;
+
   return (
     <Pressable
       onPress={() => onPress(item)}
@@ -129,6 +143,17 @@ export function EventBlock({ item, width, gutter, theme, onPress }: EventBlockPr
           {format(item.clippedStart, 'HH:mm')} – {format(item.clippedEnd, 'HH:mm')}
         </Text>
       ) : null}
+      {summary ? (
+        <Text numberOfLines={1} style={[styles.summary, { color: theme.textSecondary }]}>
+          {summary}
+        </Text>
+      ) : null}
+      {item.height > 70 && item.assignedNames && item.assignedNames.length > 0 ? (
+        <Text numberOfLines={1} style={[styles.summary, { color: theme.textSecondary }]}>
+          {item.assignedNames.slice(0, 2).join(', ')}
+          {item.assignedNames.length > 2 ? ` +${item.assignedNames.length - 2}` : ''}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -149,6 +174,10 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 11,
+    marginTop: 1,
+  },
+  summary: {
+    fontSize: 10,
     marginTop: 1,
   },
 });

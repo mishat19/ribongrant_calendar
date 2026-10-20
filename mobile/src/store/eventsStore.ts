@@ -16,6 +16,7 @@ interface EventsState {
   createEvent: (db: SQLiteDatabase, draft: EventDraft) => Promise<CalEvent>;
   editEvent: (db: SQLiteDatabase, id: number, draft: EventDraft) => Promise<CalEvent>;
   removeEvent: (db: SQLiteDatabase, event: CalEvent) => Promise<void>;
+  replaceEvents: (events: CalEvent[]) => void;
 }
 
 export const useEventsStore = create<EventsState>((set) => ({
@@ -55,4 +56,6 @@ export const useEventsStore = create<EventsState>((set) => ({
     await dbDeleteEvent(db, event.id);
     set((state) => ({ events: state.events.filter((e) => e.id !== event.id) }));
   },
+
+  replaceEvents: (events) => set({ events }),
 }));
