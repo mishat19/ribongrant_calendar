@@ -9,6 +9,41 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState("calendar");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const confirmImport = window.confirm(
+      "Importer cette base de données écrasera la base actuelle. Êtes-vous sûr ?",
+    );
+    if (!confirmImport) {
+      e.target.value = "";
+      return;
+    }
+    const formData = new FormData();
+    formData.append("db", file);
+    fetch("/api/db/import", {
+      method: "POST",
+      body: formData,
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        alert(
+          data.ok
+            ? "Base de données importée avec succès. Veuillez redémarrer le serveur et rafraîchir la page."
+            : data.error || "Erreur lors de l'import",
+        );
+        if (data.ok) {
+          e.target.value = "";
+        }
+      })
+      .catch((err) => {
+        alert("Erreur lors de l'import: " + err.message);
+        e.target.value = "";
+      });
+    setMenuOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -33,54 +68,35 @@ export default function App() {
                 </button>
               ))}
             </nav>
-            <div className="flex gap-2">
-              <a
-                href="/api/db/export"
-                download
-                className="px-3 py-1.5 rounded-md text-sm font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition"
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
               >
-                Exporter BDD
-              </a>
-              <label className="px-3 py-1.5 rounded-md text-sm font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition cursor-pointer">
-                Importer BDD
-                <input
-                  type="file"
-                  accept=".db"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const confirm = window.confirm(
-                      "Importer cette base de données écrasera la base actuelle. Êtes-vous sûr ?",
-                    );
-                    if (!confirm) {
-                      e.target.value = "";
-                      return;
-                    }
-                    const formData = new FormData();
-                    formData.append("db", file);
-                    fetch("/api/db/import", {
-                      method: "POST",
-                      body: formData,
-                    })
-                      .then((res) => res.json())
-                      .then((data) => {
-                        alert(
-                          data.ok
-                            ? "Base de données importée avec succès. Veuillez redémarrer le serveur et rafraîchir la page."
-                            : data.error || "Erreur lors de l'import",
-                        );
-                        if (data.ok) {
-                          e.target.value = "";
-                        }
-                      })
-                      .catch((err) => {
-                        alert("Erreur lors de l'import: " + err.message);
-                        e.target.value = "";
-                      });
-                  }}
-                />
-              </label>
+                Fichiers ▾
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden z-30">
+                  <a
+                    href="/api/db/export"
+                    download
+                    className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Exporter BDD
+                  </a>
+                  <label className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
+                    Importer BDD
+                    <input
+                      type="file"
+                      accept=".db"
+                      className="hidden"
+                      onChange={handleImport}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
           </div>
         </div>

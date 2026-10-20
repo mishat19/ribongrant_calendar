@@ -4,7 +4,11 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import frLocale from "@fullcalendar/core/locales/fr";
-import { parseDate, eligibleMembers } from "../lib/availability.js";
+import { parseDate, eligibleMembers, isoWeek } from "../lib/availability.js";
+import {
+  buildWeekPlanningHtml,
+  exportWeekPlanningPdf,
+} from "../lib/weekPlanningPdf.js";
 
 async function api(path, options) {
   const res = await fetch(path, {
@@ -34,6 +38,14 @@ const RECURRENCES = [
 
 const pad = (n) => String(n).padStart(2, "0");
 
+const DAY_MS = 86400000;
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 function toLocalInput(value) {
   if (!value) return "";
   const d = parseDate(value);
@@ -55,18 +67,27 @@ function expandEvent(ev) {
     recurring,
   };
   const color = ev.color || undefined;
-  const build = (start, end, id) => ({
-    id,
-    title: ev.title,
-    start,
-    end,
-    allDay: ev.all_day,
-    backgroundColor: color,
-    borderColor: color,
-    startEditable: !recurring,
-    durationEditable: !recurring,
-    extendedProps: { ...ext, occurrence: toDateInput(start) },
-  });
+  const build = (start, end, id) => {
+    const durationMs = end ? end.getTime() - start.getTime() : null;
+    const longRunning =
+      !ev.all_day && durationMs != null && durationMs >= DAY_MS;
+    const eventStart = longRunning ? startOfDay(start) : start;
+    const eventEnd = longRunning
+      ? new Date(startOfDay(new Date(end.getTime() - 1)).getTime() + DAY_MS)
+      : end;
+    return {
+      id,
+      title: ev.title,
+      start: eventStart,
+      end: eventEnd,
+      allDay: ev.all_day || longRunning,
+      backgroundColor: color,
+      borderColor: color,
+      startEditable: !recurring,
+      durationEditable: !recurring,
+      extendedProps: { ...ext, occurrence: toDateInput(start) },
+    };
+  };
 
   const start = parseDate(ev.start);
   if (!start) return [];
@@ -78,7 +99,15 @@ function expandEvent(ev) {
   }
 
   const end = ev.end ? parseDate(ev.end) : null;
-  const durationMs = end ? end - start : null;
+  const rawDurationMs = end ? end - start : null;
+  const durationMs =
+    rawDurationMs == null
+      ? null
+      : rawDurationMs > 0
+        ? rawDurationMs
+        : ev.all_day
+          ? 86400000
+          : 3600000;
   const until = ev.recurrence_until ? parseDate(ev.recurrence_until) : null;
   const hardStop =
     until ||
@@ -180,6 +209,15 @@ function EventSlot({ arg, ctx }) {
           </select>
         </div>
       )}
+      {!isTimeGrid && assigned.length > 0 && (
+        <div className="mt-0.5">
+          {assigned.map((m) => (
+            <div key={m.id} className="truncate opacity-80">
+              {m.name}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -188,7 +226,14 @@ export default function CalendarPage() {
   const [events, setEvents] = useState([]);
   const [members, setMembers] = useState([]);
   const [modal, setModal] = useState(null);
+  const [formError, setFormError] = useState(null);
+  useEffect(() => {
+    setFormError(null);
+  }, [modal]);
   const [error, setError] = useState(null);
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState(null);
   const calRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -239,6 +284,107 @@ export default function CalendarPage() {
     (arg) => <EventSlot arg={arg} ctx={ctxRef.current} />,
     [],
   );
+
+  const handleDatesSet = useCallback(() => {
+    const api = calRef.current?.getApi();
+    if (!api) return;
+    const date = api.getDate();
+    setAnchorDate((prev) =>
+      prev && prev.getTime() === date.getTime() ? prev : date,
+    );
+  }, []);
+
+  const weekInfo = useMemo(() => {
+    const start = new Date(anchorDate);
+    start.setHours(0, 0, 0, 0);
+    const dow = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - dow);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const range =
+      start.getMonth() === end.getMonth()
+        ? `${start.getDate()} – ${end.toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}`
+        : `${start.toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "short",
+          })} – ${end.toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}`;
+    return { start, end, week: isoWeek(start), range };
+  }, [anchorDate]);
+
+  const exportWeek = useCallback(async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    setPdfMsg(null);
+    try {
+      const { start, end, week } = weekInfo;
+      const endExclusive = new Date(end.getTime() + 86400000);
+      const entries = [];
+      for (const ev of fcEvents) {
+        const s = ev.start ? new Date(ev.start) : null;
+        if (!s) continue;
+        const meta = ev.extendedProps || {};
+        const e = ev.end
+          ? new Date(ev.end)
+          : new Date(s.getTime() + (ev.allDay ? 86400000 : 3600000));
+        if (e <= start || s >= endExclusive) continue;
+        const assigned = (meta.attributions || [])
+          .filter((a) => a.occurrence === meta.occurrence)
+          .map((a) => members.find((m) => m.id === a.member_id))
+          .filter(Boolean)
+          .map((m) => ({ name: m.name, color: m.color }));
+        entries.push({
+          title: ev.title,
+          color: ev.backgroundColor || COLORS[0],
+          start: s,
+          end: e,
+          allDay: !!ev.allDay,
+          availableCount: eligibleMembers(members, s, !!ev.allDay).length,
+          totalMembers: members.length,
+          assigned,
+        });
+      }
+      const html = buildWeekPlanningHtml({
+        title: `Planning de la semaine ${week}`,
+        subtitle: `Du ${start.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })} au ${end.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}`,
+        days: Array.from(
+          { length: 7 },
+          (_, i) => new Date(start.getTime() + i * 86400000),
+        ),
+        events: entries,
+      });
+      const result = await exportWeekPlanningPdf(
+        html,
+        `planning-semaine-${week}-${start.getFullYear()}.pdf`,
+      );
+      if (result?.error) {
+        setPdfMsg({ kind: "error", text: result.error });
+      } else if (result?.saved && result.path) {
+        setPdfMsg({ kind: "ok", text: `PDF enregistré : ${result.path}` });
+      }
+    } catch (err) {
+      setPdfMsg({ kind: "error", text: String(err?.message || err) });
+    } finally {
+      setPdfBusy(false);
+    }
+  }, [pdfBusy, weekInfo, fcEvents, members]);
 
   const openCreate = (info) => {
     const allDay = !!info.allDay;
@@ -302,6 +448,20 @@ export default function CalendarPage() {
     e.preventDefault();
     const d = modal.data;
     if (!d.title.trim()) return;
+    if (d.start && d.end) {
+      const endsBeforeStart = d.all_day
+        ? d.end.slice(0, 10) <= d.start.slice(0, 10)
+        : new Date(d.end) <= new Date(d.start);
+      if (endsBeforeStart) {
+        setFormError(
+          d.all_day
+            ? "La date de fin doit être après la date de début."
+            : "L'heure de fin doit être après l'heure de début.",
+        );
+        return;
+      }
+    }
+    setFormError(null);
     const start = d.all_day
       ? d.start.slice(0, 10)
       : new Date(d.start).toISOString();
@@ -391,6 +551,48 @@ export default function CalendarPage() {
       )}
 
       <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <p className="text-sm text-slate-500">
+            <span className="font-medium text-slate-700">
+              Semaine {weekInfo.week}
+            </span>{" "}
+            · {weekInfo.range}
+          </p>
+          <div className="flex items-center gap-3">
+            {pdfMsg ? (
+              <span
+                className={
+                  pdfMsg.kind === "error"
+                    ? "text-xs text-red-600"
+                    : pdfMsg.kind === "info"
+                      ? "text-xs text-slate-500"
+                      : "text-xs text-emerald-600"
+                }
+              >
+                {pdfMsg.text}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={exportWeek}
+              disabled={pdfBusy}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" />
+              </svg>
+              {pdfBusy ? "Génération…" : "Télécharger le PDF de la semaine"}
+            </button>
+          </div>
+        </div>
         <FullCalendar
           ref={calRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -412,10 +614,12 @@ export default function CalendarPage() {
           dayMaxEvents={3}
           nowIndicator
           slotMinTime="06:00:00"
-          slotMaxTime="22:00:00"
+          slotMaxTime="24:00:00"
+          slotDuration="01:00:00"
           height="auto"
           events={fcEvents}
           eventContent={renderEventContent}
+          datesSet={handleDatesSet}
           select={openCreate}
           dateClick={openCreate}
           eventClick={openEdit}
@@ -436,6 +640,9 @@ export default function CalendarPage() {
                 ? "Nouvel événement"
                 : "Modifier l'événement"}
             </h3>
+            {formError && (
+              <p className="text-sm text-red-600">{formError}</p>
+            )}
             <input
               autoFocus
               placeholder="Titre"
@@ -567,11 +774,6 @@ export default function CalendarPage() {
                 />
               ))}
             </div>
-
-            <p className="text-[11px] text-slate-400">
-              L'assignation des personnes se fait directement sur chaque créneau
-              du calendrier (vue semaine / jour), occurrence par occurrence.
-            </p>
 
             <div className="flex gap-2 pt-2 border-t border-slate-100">
               <button

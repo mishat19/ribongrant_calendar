@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "Ribongrant Calendar",
+    "slug": "ribongrant-calendar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/ribongrant_rounded.png",
+    "scheme": "ribocal",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "fr.ribongrant.calendar"
+    },
+    "android": {
+      "package": "fr.ribongrant.calendar",
+      "adaptiveIcon": {
+        "backgroundColor": "#1A73E8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/ribongrant_rounded.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "root": "src/app"
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "color": "#1A73E8"
+        }
+      ],
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/ribongrant_rounded.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/ribongrant_rounded.png",
+            "backgroundColor": "#202124"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "root": "src/app",
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "f15c24c1-14a2-4858-91ac-dab96d4a7d20"
+      }
+    },
+    "owner": "mishats-team"
+  }
+}
