@@ -21,9 +21,6 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/ribongrant_rounded.png"
-    },
     "plugins": [
       [
         "expo-router",
@@ -41,6 +38,17 @@
       "expo-font",
       "expo-sharing",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "gifEnabled": false,
+            "webpEnabled": false
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/ribongrant_rounded.png",
@@ -52,14 +60,12 @@
             "backgroundColor": "#202124"
           }
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "router": {
-        "root": "src/app",
-        "asyncRoutes": {
-          "web": true
-        }
+        "root": "src/app"
       },
       "eas": {
         "projectId": "f15c24c1-14a2-4858-91ac-dab96d4a7d20"

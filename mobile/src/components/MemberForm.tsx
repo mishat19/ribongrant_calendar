@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSQLiteContext } from 'expo-sqlite';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { AppTheme } from '../theme';
 import type { AvailabilityDraft, Member, PatternId, PeriodId, DayId } from '../domain/types';
 import { DAYS, PATTERNS, PERIODS } from '../domain/availability';

@@ -32,6 +32,8 @@ yarn-error.*
 
 # local env files
 .env*.local
+# bundle-size flags in .env are not secrets — keep them tracked despite the root .gitignore
+!.env
 
 # typescript
 *.tsbuildinfo
