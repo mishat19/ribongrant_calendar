@@ -229,18 +229,8 @@ npx expo lint           # eslint (config Expo)
 
 ---
 
-## 📄 Licence
-
-Projet développé par **Ribongrant Studio**.
-
-> ⚠️ Le fichier `LICENSE` n'a pas encore été ajouté au dépôt : le choix de la
-> licence (MIT, AGPL-3.0, licence propriétaire…) reste à faire.
-
----
-
 <div align="center">
-
-**Ribongrant Studio** · *Ribongrant Calendar*
-<sub>Conçu pour celles et ceux qui n'ont pas le temps de remplir un tableau Excel.</sub>
-
+  <strong>Ribongrant Studio</strong> · <em>Ribongrant Calendar</em>
+  <br/>
+  <sub>Conçu pour celles et ceux qui n'ont pas le temps de remplir un tableau Excel.</sub>
 </div>
