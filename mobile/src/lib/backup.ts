@@ -82,6 +82,25 @@ async function readTable(db: SQLiteDatabase, table: TableName): Promise<Record<s
   return db.getAllAsync<Record<string, unknown>>(`SELECT * FROM ${table}`);
 }
 
+interface ColumnInfo {
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+}
+
+/**
+ * Colonnes de la table destination : l'import ne copie que les colonnes
+ * communes. Une base du bureau a par exemple `events.created_at`, absente du
+ * schema mobile : sans ce filtre l'import echoue entierement.
+ */
+async function destinationColumns(
+  db: SQLiteDatabase,
+  table: TableName
+): Promise<ColumnInfo[]> {
+  return db.getAllAsync<ColumnInfo>(`PRAGMA table_info(${table})`);
+}
+
 async function importBytes(db: SQLiteDatabase, bytes: Uint8Array): Promise<ImportResult> {
   assertSqliteFile(bytes);
 
@@ -101,8 +120,10 @@ async function importBytes(db: SQLiteDatabase, bytes: Uint8Array): Promise<Impor
       TableName,
       Record<string, unknown>[]
     >;
+    const schemas: Record<TableName, ColumnInfo[]> = {} as Record<TableName, ColumnInfo[]>;
     for (const table of TABLES) {
       snapshot[table] = await readTable(tmp, table);
+      schemas[table] = await destinationColumns(db, table);
     }
 
     await db.withTransactionAsync(async () => {
@@ -111,13 +132,24 @@ async function importBytes(db: SQLiteDatabase, bytes: Uint8Array): Promise<Impor
         await db.runAsync(`DELETE FROM ${table}`);
       }
       for (const table of TABLES) {
+        const infos = schemas[table];
+        const allowed = new Set(infos.map((c) => c.name));
+        const required = infos.filter((c) => c.notnull === 1 && c.dflt_value === null);
         for (const row of snapshot[table]) {
-          const columns = Object.keys(row);
+          const columns = Object.keys(row).filter((c) => allowed.has(c));
           if (columns.length === 0) continue;
           const placeholders = columns.map(() => '?').join(', ');
+          const values = columns.map((name) => {
+            const value = row[name];
+            if (value !== null && value !== undefined) return value as never;
+            const info = required.find((c) => c.name === name);
+            if (!info) return null as never;
+            // colonne NOT NULL sans defaut absente de la source : on la remplit
+            return (info.type.toUpperCase().includes('INT') ? 0 : '') as never;
+          });
           await db.runAsync(
             `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
-            ...columns.map((c) => row[c] as never)
+            ...values
           );
         }
       }

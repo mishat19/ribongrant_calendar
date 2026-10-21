@@ -141,6 +141,26 @@ npm run build:electron
 npm run build:electron:installer
 ```
 
+### 📁 Où sont mes données ?
+
+Une **seule base de données par utilisateur**, partagée par l'application installée et
+le mode développement :
+
+| Système | Chemin |
+|---|---|
+| Windows | `%APPDATA%\ribongrant_calendar\data.db` |
+| Linux | `~/.config/Ribongrant Calendar/data.db` |
+| macOS | `~/Library/Application Support/Ribongrant Calendar/data.db` |
+
+> ⚠️ Le serveur de développement (`npm run dev:api`) utilise le même dossier via la
+> variable `APP_DATA_DIR` du fichier `.env` : sinon le mode dev travaillerait sur une
+> autre base que l'application du bureau, et les données seraient « perdues » d'un
+> environnement à l'autre.
+
+Les exports (`Fichiers ▾ ▸ Exporter BDD`) sont des **copies cohérentes** de la base
+(le journal *WAL* est inclus), et l'import remplace le contenu de la base
+immédiatement : pas besoin de redémarrer l'application.
+
 ---
 
 ## 📱 Version mobile (Expo / React Native)

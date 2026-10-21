@@ -112,6 +112,11 @@ if (!hasColumn("attributions", "occurrence")) {
   `);
 }
 
+function ensureMission(name, emoji) {
+  db.prepare("INSERT OR IGNORE INTO missions (name, emoji) VALUES (?, ?)").run(name, emoji);
+  return db.prepare("SELECT id FROM missions WHERE name=?").get(name).id;
+}
+
 const hasMembers = db.prepare("SELECT COUNT(*) AS n FROM members").get().n > 0;
 
 if (!hasMembers) {
@@ -250,32 +255,28 @@ if (!hasMissions) {
   seedRelations();
 }
 
-db.prepare("INSERT OR IGNORE INTO missions (name, emoji) VALUES (?, ?)").run(
-  "Service à table",
-  "🍽️",
-);
+ensureMission("Service à table", "🍽️");
 
 const hasSlots = db.prepare("SELECT COUNT(*) AS n FROM mission_slots").get().n > 0;
 
 if (!hasSlots) {
-  const idOf = (name) => db.prepare("SELECT id FROM missions WHERE name=?").get(name).id;
   const insertSlot = db.prepare(
     "INSERT INTO mission_slots (mission_id, day, start_time, end_time) VALUES (?, ?, ?, ?)",
   );
   const ALL_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri"];
   const rows = [];
-  const service = idOf("Service à table");
+  const service = ensureMission("Service à table", "🍽️");
   for (const d of ALL_DAYS) {
     rows.push([service, d, "12:00", "14:00"]);
     rows.push([service, d, "18:00", "20:00"]);
   }
-  const permanence = idOf("Permanence accueil");
+  const permanence = ensureMission("Permanence accueil", "🛎️");
   for (const d of WEEK_DAYS) rows.push([permanence, d, "09:00", "12:00"]);
-  const atelier = idOf("Atelier");
+  const atelier = ensureMission("Atelier", "🎨");
   rows.push([atelier, "tue", "14:00", "17:00"]);
   rows.push([atelier, "thu", "14:00", "17:00"]);
-  const logistique = idOf("Logistique");
+  const logistique = ensureMission("Logistique", "📦");
   rows.push([logistique, "wed", "09:00", "11:00"]);
   const seedSlots = db.transaction(() => {
     for (const r of rows) insertSlot.run(...r);

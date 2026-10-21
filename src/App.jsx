@@ -31,11 +31,12 @@ export default function App() {
       .then((data) => {
         alert(
           data.ok
-            ? "Base de données importée avec succès. Veuillez redémarrer le serveur et rafraîchir la page."
+            ? "Base de données importée avec succès."
             : data.error || "Erreur lors de l'import",
         );
         if (data.ok) {
           e.target.value = "";
+          window.location.reload();
         }
       })
       .catch((err) => {

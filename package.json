@@ -1,7 +1,7 @@
 {
   "name": "ribongrant_calendar",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "electron/main.js",
   "description": "Application de gestion de calendrier avec assignation de membres",
@@ -15,8 +15,8 @@
     "dev:api": "node --watch server/index.js",
     "dev:all": "concurrently -c auto \"npm:dev\" \"npm:dev:api\"",
     "electron:dev": "concurrently -c auto \"npm:dev\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
-    "build:electron": "npm run build && electron-builder --win portable",
-    "build:electron:installer": "npm run build && electron-builder --win nsis"
+    "build:electron": "npm run build && node scripts/build-electron.js portable",
+    "build:electron:installer": "npm run build && node scripts/build-electron.js nsis"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",

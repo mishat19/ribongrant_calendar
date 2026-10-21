@@ -11,10 +11,6 @@ app.use(express.json());
 
 const DATA_DIR = process.env.APP_DATA_DIR || __dirname;
 const upload = multer({ dest: path.join(DATA_DIR, "tmp_uploads") });
-const DB_PATH = path.join(DATA_DIR, "data.db");
-const DB_WAL_PATH = path.join(DATA_DIR, "data.db-wal");
-const DB_SHM_PATH = path.join(DATA_DIR, "data.db-shm");
-const TMP_UPLOADS = path.join(DATA_DIR, "tmp_uploads");
 
 /* ------------------------------------------------------------------ members */
 
@@ -347,19 +343,62 @@ app.post("/api/mission-slots/place", (req, res) => {
 });
 
 // Export database as a backup
-app.get("/api/db/export", (req, res) => {
-  res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Content-Disposition", "attachment; filename=ribongrant_calendar.db");
-  const readStream = fs.createReadStream(DB_PATH);
-  readStream.on("error", (err) => {
+// The database runs in WAL mode: recent writes live in data.db-wal and are not
+// in data.db until a checkpoint happens. Copying data.db alone therefore loses
+// the latest changes (and even the schema). The SQLite backup API produces a
+// consistent snapshot that includes the WAL.
+app.get("/api/db/export", async (req, res) => {
+  const tmpPath = path.join(DATA_DIR, `export-${Date.now()}.db`);
+  try {
+    fs.rmSync(tmpPath, { force: true });
+    await db.backup(tmpPath);
+
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", "attachment; filename=ribongrant_calendar.db");
+    const readStream = fs.createReadStream(tmpPath);
+    readStream.on("error", () => {
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to export database" });
+      }
+    });
+    readStream.on("close", () => {
+      fs.rmSync(tmpPath, { force: true });
+    });
+    readStream.pipe(res);
+  } catch (err) {
+    fs.rmSync(tmpPath, { force: true });
     if (!res.headersSent) {
-      res.status(500).json({ error: "Failed to export database" });
+      res.status(500).json({ error: "Failed to export database: " + err.message });
     }
-  });
-  readStream.pipe(res);
+  }
 });
 
+const IMPORT_TABLES = [
+  "missions",
+  "members",
+  "member_missions",
+  "availabilities",
+  "mission_slots",
+  "events",
+  "attributions",
+];
+
+function tableExists(schema, table) {
+  return !!db
+    .prepare(`SELECT 1 FROM ${schema}.sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(table);
+}
+
+function sharedColumns(table) {
+  const main = db.prepare(`PRAGMA main.table_info(${table})`).all().map((c) => c.name);
+  const src = db.prepare(`PRAGMA src.table_info(${table})`).all().map((c) => c.name);
+  return main.filter((name) => src.includes(name));
+}
+
 // Import database (will overwrite existing database)
+// The uploaded file is attached and every table is copied inside a single
+// transaction: the connection stays open, so the app keeps working right after
+// the import (no server restart needed).
 app.post("/api/db/import", upload.single("db"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "No file uploaded. Please provide a .db file" });
@@ -376,29 +415,38 @@ app.post("/api/db/import", upload.single("db"), (req, res) => {
       return res.status(400).json({ error: "Invalid database file" });
     }
 
-    // Close the current database connection
-    db.close();
-
-    // Backup existing WAL/SHM files and replace DB
-    try { if (fs.existsSync(DB_WAL_PATH)) fs.unlinkSync(DB_WAL_PATH); } catch (e) { /* ignore */ }
-    try { if (fs.existsSync(DB_SHM_PATH)) fs.unlinkSync(DB_SHM_PATH); } catch (e) { /* ignore */ }
-
-    // Copy uploaded file to DB_PATH
-    fs.copyFileSync(uploadedFile, DB_PATH);
+    db.prepare("ATTACH DATABASE ? AS src").run(uploadedFile);
+    try {
+      db.pragma("foreign_keys = OFF");
+      const copyTables = db.transaction(() => {
+        for (const table of [...IMPORT_TABLES].reverse()) {
+          db.prepare(`DELETE FROM main.${table}`).run();
+        }
+        for (const table of IMPORT_TABLES) {
+          if (!tableExists("src", table)) continue;
+          const columns = sharedColumns(table);
+          if (columns.length === 0) continue;
+          const list = columns.map((name) => `"${name}"`).join(", ");
+          db.prepare(
+            `INSERT INTO main.${table} (${list}) SELECT ${list} FROM src.${table}`,
+          ).run();
+        }
+      });
+      copyTables();
+    } finally {
+      db.pragma("foreign_keys = ON");
+      db.prepare("DETACH DATABASE src").run();
+    }
 
     // Clean up uploaded file
     try { fs.unlinkSync(uploadedFile); } catch (e) { /* ignore */ }
+    for (const suffix of ["-wal", "-shm"]) {
+      try { fs.unlinkSync(uploadedFile + suffix); } catch (e) { /* ignore */ }
+    }
 
-    // Clean up tmp directory
-    try { fs.rmSync(TMP_UPLOADS, { recursive: true, force: true }); fs.mkdirSync(TMP_UPLOADS); } catch (e) { /* ignore */ }
-
-    res.json({ ok: true, message: "Database imported successfully. Server will need to restart to use new database." });
+    res.json({ ok: true, message: "Database imported successfully." });
   } catch (err) {
     try { fs.unlinkSync(uploadedFile); } catch (e) { /* ignore */ }
-    // Try to reinitialize DB connection
-    try {
-      db.prepare("SELECT 1").get();
-    } catch (e) { /* ignore */ }
     res.status(500).json({ error: "Failed to import database: " + err.message });
   }
 });

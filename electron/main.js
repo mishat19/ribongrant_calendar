@@ -32,12 +32,10 @@ function listen(serverApp, port) {
 }
 
 async function startServer() {
-  if (app.isPackaged) {
-    process.env.NODE_ENV = "production";
-    process.env.APP_DATA_DIR = app.getPath("userData");
-  } else {
-    process.env.NODE_ENV = "development";
-  }
+  // Même dossier de données en dev et en app installée : une seule base par
+  // utilisateur, sinon le mode développement travaille sur une autre BDD.
+  process.env.APP_DATA_DIR = app.getPath("userData");
+  process.env.NODE_ENV = app.isPackaged ? "production" : "development";
 
   const { default: serverApp } = await import("../server/api.js");
   server = await listen(serverApp, PREFERRED_PORT);
@@ -134,6 +132,12 @@ app.whenReady().then(async () => {
     port = await startServer();
   } catch (err) {
     console.error("[server] failed to start:", err);
+    dialog.showErrorBox(
+      "Ribongrant Calendar",
+      `Le serveur local n'a pas pu démarrer.\n\n${err?.message || err}`,
+    );
+    app.quit();
+    return;
   }
 
   createWindow(port);
