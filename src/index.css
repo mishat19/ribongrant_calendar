@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* Vues Semaine / Jour (FullCalendar) : lignes horaires plus hautes pour
+   laisser plus de place aux tâches. Le sélecteur a une spécificité supérieure
+   à celui de FullCalendar (`.fc .fc-timegrid-slot`), injecté à l'exécution.
+   `--rg-slot-base` est la hauteur de référence : le calcul des lignes
+   adaptées aux tâches les plus hautes s'appuie sur cette valeur. */
+.fc .fc-timegrid {
+  --rg-slot-base: 3em;
+}
+
+.fc .fc-timegrid .fc-timegrid-slot {
+  height: var(--rg-slot-base);
+}

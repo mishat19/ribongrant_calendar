@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -9,6 +17,13 @@ import {
   buildWeekPlanningHtml,
   exportWeekPlanningPdf,
 } from "../lib/weekPlanningPdf.js";
+import {
+  EVENT_BLOCK_CHROME_PX,
+  buildSlotHeightCss,
+  computeSlotRowHeights,
+  eventMinutes,
+  readBaseSlotHeight,
+} from "../lib/timegridSlots.js";
 
 async function api(path, options) {
   const res = await fetch(path, {
@@ -37,6 +52,15 @@ const RECURRENCES = [
 ];
 
 const pad = (n) => String(n).padStart(2, "0");
+
+function sameArray(a, b) {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
 
 const DAY_MS = 86400000;
 
@@ -138,6 +162,81 @@ function expandEvent(ev) {
   return out;
 }
 
+// Panneau d'assignation : largeur calée sur la tâche, portail hors du
+// calendrier pour ne jamais être rogné par le conteneur de FullCalendar.
+const PANEL_MIN_WIDTH = 190;
+const PANEL_GAP = 6;
+const PANEL_EDGE = 8;
+const PANEL_CLOSE_DELAY = 220;
+
+function formatTimeRange(event) {
+  if (event.allDay) return "Journée entière";
+  const start = event.start;
+  if (!start) return "";
+  const from = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+  const end = event.end;
+  if (!end) return from;
+  return `${from} – ${pad(end.getHours())}:${pad(end.getMinutes())}`;
+}
+
+function AssignRow({ member, status, onClick }) {
+  const isAssigned = status === "assigned";
+  const isAvailable = status === "available";
+  const isUnavailable = status === "unavailable";
+  const base =
+    "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[11px] leading-tight transition";
+  const tone = isAssigned
+    ? "bg-slate-50 font-semibold text-slate-900 hover:bg-slate-100"
+    : isAvailable
+      ? "text-slate-600 hover:bg-slate-100"
+      : "cursor-not-allowed text-slate-300";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isUnavailable}
+      className={`${base} ${tone}`}
+      title={
+        isAssigned
+          ? `Retirer ${member.name}`
+          : isAvailable
+            ? `Assigner ${member.name}`
+            : `${member.name} — indisponible sur ce créneau`
+      }
+    >
+      <span
+        className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+          isAssigned
+            ? ""
+            : isAvailable
+              ? "border border-slate-300"
+              : "bg-slate-200"
+        }`}
+        style={isAssigned ? { background: member.color } : undefined}
+      />
+      <span className="min-w-0 flex-1 truncate">{member.name}</span>
+      {isAssigned ? (
+        <svg
+          viewBox="0 0 20 20"
+          className="h-3.5 w-3.5 shrink-0 text-emerald-600"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ) : null}
+      {isUnavailable ? (
+        <span className="shrink-0 text-[9px] uppercase tracking-wide">
+          indispo
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 function EventSlot({ arg, ctx }) {
   const { event } = arg;
   const isTimeGrid = String(arg.view.type).startsWith("timeGrid");
@@ -152,72 +251,186 @@ function EventSlot({ arg, ctx }) {
   const assigned = assignedIds
     .map((id) => members.find((m) => m.id === id))
     .filter(Boolean);
-  const options = [...available];
-  for (const m of assigned) {
-    if (!options.find((o) => o.id === m.id)) options.push(m);
-  }
+  const availableIds = new Set(available.map((m) => m.id));
   const addable = available.filter((m) => !assignedIds.includes(m.id));
-  const stop = (e) => e.stopPropagation();
+  const unavailable = members.filter(
+    (m) => !assignedIds.includes(m.id) && !availableIds.has(m.id),
+  );
+  const contentRef = useRef(null);
+  const rootRef = useRef(null);
+  const panelRef = useRef(null);
+  const closeTimer = useRef(null);
+  const [panel, setPanel] = useState(null);
 
-  const swap = (oldId, value) => {
-    const next =
-      value === ""
-        ? assignedIds.filter((x) => x !== oldId)
-        : assignedIds.map((x) => (x === oldId ? Number(value) : x));
+  useLayoutEffect(() => {
+    if (!isTimeGrid) return;
+    const el = contentRef.current;
+    if (!el || !ctx.reportContentHeight) return;
+    ctx.reportContentHeight({
+      key: event.id,
+      start: event.start,
+      end: event.end,
+      heightPx: Math.ceil(el.getBoundingClientRect().height),
+    });
+  });
+
+  const cancelClose = useCallback(() => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setPanel(null), PANEL_CLOSE_DELAY);
+  }, [cancelClose]);
+
+  useEffect(() => cancelClose, [cancelClose]);
+
+  // Le panneau se positionne sous la tâche (au-dessus si la place manque) et
+  // prend exactement la largeur de la tâche.
+  const openPanel = useCallback(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const width = Math.max(Math.round(rect.width), PANEL_MIN_WIDTH);
+    const below = window.innerHeight - rect.bottom;
+    const above = rect.top;
+    const place = below < 260 && above > below ? "above" : "below";
+    const maxLeft = Math.max(
+      PANEL_EDGE,
+      window.innerWidth - width - PANEL_EDGE,
+    );
+    const left = Math.min(Math.max(PANEL_EDGE, rect.left), maxLeft);
+    setPanel({
+      style:
+        place === "below"
+          ? { left, top: rect.bottom + PANEL_GAP, width }
+          : { left, bottom: window.innerHeight - rect.top + PANEL_GAP, width },
+    });
+  }, []);
+
+  // Le panneau suit le défilement de la page, il est donc refermé au scroll
+  // et dès qu'on clique en dehors.
+  useEffect(() => {
+    if (!panel) return undefined;
+    const close = () => setPanel(null);
+    const onPointerDown = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) close();
+    };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    document.addEventListener("mousedown", onPointerDown, true);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      document.removeEventListener("mousedown", onPointerDown, true);
+    };
+  }, [panel]);
+
+  const toggleMember = (memberId) => {
+    const next = assignedIds.includes(memberId)
+      ? assignedIds.filter((x) => x !== memberId)
+      : [...assignedIds, memberId];
     updateAssignments(event, next);
   };
 
   return (
-    <div className="px-1 py-0.5 overflow-hidden text-[10px] leading-tight">
-      <div className="font-semibold truncate" title={event.title}>
-        {event.title}
-      </div>
-      <div className="opacity-80">
-        {available.length}/{total} dispo
-      </div>
-      {isTimeGrid && (
-        <div className="mt-0.5 space-y-0.5" onMouseDown={stop} onClick={stop}>
-          {assigned.map((m) => (
-            <select
-              key={m.id}
-              value={m.id}
-              onChange={(e) => swap(m.id, e.target.value)}
-              className="w-full rounded border border-white/50 bg-white/95 text-slate-800 text-[10px] px-0.5 leading-tight"
-            >
-              <option value="">— retirer —</option>
-              {options.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
+    <div
+      ref={rootRef}
+      className="relative h-full"
+      onMouseEnter={openPanel}
+      onMouseLeave={scheduleClose}
+    >
+      {/* Résumé : toujours coupé à la hauteur du bloc */}
+      <div className="h-full overflow-hidden px-1 py-0.5 text-[10px] leading-tight">
+        <div ref={contentRef}>
+          <div className="font-semibold truncate" title={event.title}>
+            {event.title}
+          </div>
+          <div className="opacity-80">
+            {available.length}/{total} dispo
+          </div>
+          {assigned.length > 0 && (
+            <div className="mt-0.5 space-y-0.5">
+              {assigned.map((m) => (
+                <div key={m.id} className="truncate opacity-90">
+                  {m.name}
+                </div>
               ))}
-            </select>
-          ))}
-          <select
-            value=""
-            onChange={(e) =>
-              e.target.value &&
-              updateAssignments(event, [...assignedIds, Number(e.target.value)])
-            }
-            className="w-full rounded border border-white/50 bg-white/95 text-slate-800 text-[10px] px-0.5 leading-tight"
-          >
-            <option value="">{addable.length ? "+ assigner…" : "—"}</option>
-            {addable.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      {!isTimeGrid && assigned.length > 0 && (
-        <div className="mt-0.5">
-          {assigned.map((m) => (
-            <div key={m.id} className="truncate opacity-80">
-              {m.name}
             </div>
-          ))}
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Panneau d'assignation, monté hors du calendrier pour ne pas être coupé */}
+      {panel &&
+        isTimeGrid &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            onMouseEnter={cancelClose}
+            onMouseLeave={scheduleClose}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="fixed z-40 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl shadow-slate-900/15"
+            style={panel.style}
+          >
+            <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-2.5 py-1.5">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ background: event.backgroundColor || COLORS[0] }}
+              />
+              <span
+                className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800"
+                title={event.title}
+              >
+                {event.title}
+              </span>
+              <span className="shrink-0 text-[10px] tabular-nums text-slate-500">
+                {formatTimeRange(event)}
+              </span>
+            </div>
+
+            <div className="max-h-56 overflow-y-auto p-1">
+              {assigned.length > 0 ? (
+                <p className="px-1.5 pb-0.5 pt-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                  Affectés ({assigned.length})
+                </p>
+              ) : null}
+              {assigned.map((m) => (
+                <AssignRow
+                  key={m.id}
+                  member={m}
+                  status="assigned"
+                  onClick={() => toggleMember(m.id)}
+                />
+              ))}
+
+              {addable.length > 0 ? (
+                <p className="px-1.5 pb-0.5 pt-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                  Disponibles ({addable.length})
+                </p>
+              ) : null}
+              {addable.map((m) => (
+                <AssignRow
+                  key={m.id}
+                  member={m}
+                  status="available"
+                  onClick={() => toggleMember(m.id)}
+                />
+              ))}
+
+              {members.length === 0 || addable.length === 0 ? (
+                <p className="px-1.5 py-2 text-[11px] text-slate-400">
+                  Aucun membre disponible.
+                </p>
+              ) : null}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -276,16 +489,107 @@ export default function CalendarPage() {
     [load],
   );
 
+  const calendarRootRef = useRef(null);
+  const slotStyleRef = useRef(null);
+  const contentHeightsRef = useRef(new Map());
+  const visibleRangeRef = useRef(null);
+  const [slotLayout, setSlotLayout] = useState({
+    rows: [],
+    heights: [],
+    basePx: 0,
+  });
+
+  // Recalcule la hauteur de chaque ligne horaire à partir du contenu mesuré
+  // des tâches : une ligne s'agrandit pour que la tâche la plus haute qui la
+  // traverse tienne entièrement.
+  const applySlotHeights = useCallback(() => {
+    const timegridEl = calendarRootRef.current?.querySelector(".fc-timegrid");
+    if (!timegridEl) return;
+    const axisCells = timegridEl.querySelectorAll(
+      "td.fc-timegrid-slot-label[data-time]",
+    );
+    if (!axisCells.length) return;
+
+    const rows = Array.from(axisCells, (el) => el.getAttribute("data-time"));
+    const basePx = readBaseSlotHeight(timegridEl, axisCells[0]);
+    const range = visibleRangeRef.current;
+    const items = [];
+    for (const info of contentHeightsRef.current.values()) {
+      if (
+        range &&
+        info.start &&
+        (info.start < range.start || info.start >= range.end)
+      )
+        continue;
+      const minutes = eventMinutes(info.start, info.end);
+      if (!minutes) continue;
+      items.push({
+        startMin: minutes.startMin,
+        endMin: minutes.endMin,
+        neededPx: info.heightPx + EVENT_BLOCK_CHROME_PX,
+      });
+    }
+
+    const heights = computeSlotRowHeights({
+      rowCount: rows.length,
+      basePx,
+      items,
+    });
+    setSlotLayout((prev) =>
+      sameArray(prev.rows, rows) && sameArray(prev.heights, heights)
+        ? prev
+        : { rows, heights, basePx },
+    );
+  }, []);
+
+  const reportContentHeight = useCallback(
+    (info) => {
+      contentHeightsRef.current.set(info.key, info);
+      applySlotHeights();
+    },
+    [applySlotHeights],
+  );
+
+  // Retire les mesures des tâches supprimées.
+  useEffect(() => {
+    const valid = new Set(fcEvents.map((e) => e.id));
+    let removed = false;
+    for (const key of contentHeightsRef.current.keys()) {
+      if (!valid.has(key)) {
+        contentHeightsRef.current.delete(key);
+        removed = true;
+      }
+    }
+    if (removed) applySlotHeights();
+  }, [fcEvents, applySlotHeights]);
+
   const ctxRef = useRef({ members: [], updateAssignments: () => {} });
   useEffect(() => {
-    ctxRef.current = { members, updateAssignments };
-  }, [members, updateAssignments]);
+    ctxRef.current = { members, updateAssignments, reportContentHeight };
+  }, [members, updateAssignments, reportContentHeight]);
   const renderEventContent = useCallback(
     (arg) => <EventSlot arg={arg} ctx={ctxRef.current} />,
     [],
   );
 
-  const handleDatesSet = useCallback(() => {
+  const slotCss = useMemo(
+    () =>
+      buildSlotHeightCss(
+        slotLayout.rows,
+        slotLayout.heights,
+        slotLayout.basePx,
+      ),
+    [slotLayout],
+  );
+  useEffect(() => {
+    const el = slotStyleRef.current;
+    if (el) el.textContent = slotCss;
+  }, [slotCss]);
+
+  const handleDatesSet = useCallback((arg) => {
+    if (arg?.start && arg?.end) {
+      visibleRangeRef.current = { start: arg.start, end: arg.end };
+    }
     const api = calRef.current?.getApi();
     if (!api) return;
     const date = api.getDate();
@@ -593,6 +897,7 @@ export default function CalendarPage() {
             </button>
           </div>
         </div>
+        <style ref={slotStyleRef} />
         <FullCalendar
           ref={calRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -640,9 +945,7 @@ export default function CalendarPage() {
                 ? "Nouvel événement"
                 : "Modifier l'événement"}
             </h3>
-            {formError && (
-              <p className="text-sm text-red-600">{formError}</p>
-            )}
+            {formError && <p className="text-sm text-red-600">{formError}</p>}
             <input
               autoFocus
               placeholder="Titre"

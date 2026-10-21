@@ -1,6 +1,8 @@
 # Ribongrant Calendar — Mobile (React Native / Expo)
 
-Application de calendrier autonome (données 100 % locales, hors-ligne) au design Google Calendar, pour **Android** et **iOS**, construite avec **Expo SDK 58** + **TypeScript**.
+Application de calendrier autonome (données 100 % locales, hors-ligne) au design Google Calendar, pour **Android** et **iOS**, construite avec **Expo SDK 57** + **TypeScript**.
+
+> La vue d'ensemble du projet (bureau + mobile) est dans le [README racine](../README.md).
 
 ## Fonctionnalités
 
@@ -10,8 +12,12 @@ Application de calendrier autonome (données 100 % locales, hors-ligne) au desig
 - Création rapide : **tap sur un créneau horaire** (événement d'1 h à cette heure) ou **FAB +**
 - Éditeur : titre, début/fin (dates + heures), toute la journée, **couleur** (palette 8), **récurrence** (quotidienne / hebdomadaire / mensuelle + date de fin), **rappel** (notification locale : au moment, 5/10/30/60 min, 1 jour avant), description
 - Fiche événement (bottom sheet) : détails, Modifier, Supprimer
+- **Affectations** : panneau dédié pour affecter les membres à un événement (par occurrence), avec les listes **affectés / disponibles / indisponibles**
+- Onglet **Membres** : fiches (nom, rôle, email, téléphone), **couleur**, **missions** et **disponibilités** (jour × période × rythme : chaque semaine / semaines paires / impaires)
 - **Recherche** plein écran par titre/description
 - Thème **clair/sombre** automatique (identité Google : bleu #1A73E8)
+- **Export / import de la base SQLite** (fichier `.db`) par partage système
+- **PDF du planning hebdomadaire** généré via `expo-print` puis partagé (mail, WhatsApp, Drive…) — mise en page adaptative : toutes les affectations d'un créneau restent visibles, pagination automatique si la semaine déborde
 - Persistance **SQLite locale** (`expo-sqlite`), interface **100 % française**
 
 ## Lancer l'application
@@ -50,11 +56,12 @@ src/
 │   ├── index.tsx        # Écran calendrier
 │   ├── event.tsx        # Modal création/édition
 │   └── search.tsx       # Modal recherche
-├── components/          # MonthView, TimeView, TimeGrid, EventBlock, header, sheet…
-├── domain/              # Types, dates (date-fns + fr), expansion des récurrences
+├── components/          # MonthView, TimeView, TimeGrid, EventBlock, EventSheet,
+│                        # EventAssignSheet (affectations), MembersView, MemberForm, header, tabs…
+├── domain/              # Types, dates (date-fns + fr), expansion des récurrences, disponibilités
 ├── db/database.ts       # Schéma + requêtes SQLite
-├── lib/notifications.ts # Planification des rappels locaux
-├── store/               # Zustand (événements, préférences)
+├── lib/                 # notifications.ts (rappels), weekPdf.ts (PDF), backup.ts (export/import)
+├── store/               # Zustand (eventsStore, teamStore, settingsStore)
 └── theme.ts             # Thèmes clair/sombre + couleurs d'événements
 ```
 

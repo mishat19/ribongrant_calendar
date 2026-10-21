@@ -10,10 +10,7 @@ import { migrateDb } from '../db/database';
 import { useTheme, type AppTheme } from '../theme';
 import { ensureNotificationSetup } from '../lib/notifications';
 
-SplashScreen.setOptions({
-  duration: 500,
-  fade: true,
-});
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -31,10 +28,13 @@ function AppSplash({ theme, onDone }: { theme: AppTheme; onDone: () => void }) {
     const timer = setTimeout(() => {
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 400,
+        duration: 350,
         useNativeDriver: true,
-      }).start(() => onDone());
-    }, 1400);
+      }).start(() => {
+        SplashScreen.hideAsync().catch(() => undefined);
+        onDone();
+      });
+    }, 800);
     return () => clearTimeout(timer);
   }, [opacity, onDone]);
 
@@ -58,6 +58,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     ensureNotificationSetup().catch(() => undefined);
+    SplashScreen.hideAsync().catch(() => undefined);
   }, []);
 
   return (

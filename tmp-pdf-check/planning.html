@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Planning de la semaine 43</title>
+<style>
+  @page { size: A4 portrait; margin: 8mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Roboto, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #202124;
+    font-size: 8px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page { break-after: page; page-break-after: always; }
+  .page:last-of-type { break-after: auto; page-break-after: auto; }
+  .head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 2px solid #1A73E8;
+    padding-bottom: 5px;
+    margin-bottom: 7px;
+  }
+  .head h1 { margin: 0; font-size: 15px; font-weight: 700; }
+  .head .sub { margin-top: 2px; font-size: 9.5px; color: #5F6368; }
+  .head .brand { font-size: 8px; color: #9AA0A6; white-space: nowrap; }
+  .grid {
+    border: 1px solid #DADCE0;
+    border-radius: 4px;
+    overflow: hidden;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .days { display: flex; background: #F8F9FA; border-bottom: 1px solid #DADCE0; }
+  .days .gutter { width: 40px; flex: none; }
+  .days .day {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    padding: 3px 2px;
+    font-size: 8.5px;
+    font-weight: 600;
+    border-left: 1px solid #DADCE0;
+  }
+  .days .day .num { margin-left: 3px; font-weight: 500; font-size: 7.5px; color: #5F6368; }
+  .days .day.we { background: #F1F3F4; }
+  .days .day.today, .days .day.today .num { color: #1A73E8; }
+  .allday { display: flex; border-bottom: 1px solid #DADCE0; }
+  .allday .gutter {
+    width: 40px;
+    flex: none;
+    padding: 3px;
+    font-size: 6.5px;
+    color: #9AA0A6;
+  }
+  .allday .col {
+    flex: 1;
+    min-width: 0;
+    border-left: 1px solid #DADCE0;
+    padding: 2px;
+    min-height: 15px;
+  }
+  .chip {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 7px;
+    font-weight: 600;
+    padding: 1px 4px;
+    margin: 1px 2px 1px 0;
+  }
+  .body { display: flex; }
+  .guttercol {
+    width: 40px;
+    flex: none;
+    position: relative;
+    background: #FAFAFA;
+  }
+  .hlabel { position: absolute; right: 3px; font-size: 7px; color: #9AA0A6; line-height: 1; }
+  .body .col {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+    border-left: 1px solid #DADCE0;
+  }
+  .body .col.we { background: #FAFAFA; }
+  .hline { position: absolute; left: 0; right: 0; border-top: 1px solid #E8EAED; }
+  .ev {
+    position: absolute;
+    overflow: hidden;
+    border-radius: 3px;
+    border-left: 3px solid;
+    padding: 2px 3px;
+    line-height: 1.2;
+  }
+  .ev .etitle {
+    font-size: 8px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ev .who {
+    font-size: 7px;
+    color: #5F6368;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ev .who.more { font-style: italic; color: #1A73E8; }
+  .dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    margin-right: 2px;
+  }
+  .detail { margin-top: 10px; break-inside: auto; }
+  .detail h2 {
+    margin: 0 0 5px;
+    font-size: 11px;
+    font-weight: 700;
+    border-bottom: 1px solid #DADCE0;
+    padding-bottom: 3px;
+  }
+  .dgroup {
+    margin-bottom: 6px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .dday {
+    font-size: 9px;
+    font-weight: 700;
+    color: #1A73E8;
+    margin-bottom: 1px;
+  }
+  .drow {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 1.5px 0;
+    border-bottom: 1px dotted #E8EAED;
+    font-size: 8px;
+  }
+  .dtime { width: 72px; flex: none; color: #5F6368; }
+  .dname { width: 150px; flex: none; font-weight: 600; }
+  .dwho { flex: 1; min-width: 0; color: #5F6368; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="head">
+      <div>
+        <h1>Planning de la semaine 43</h1>
+        <div class="sub">Du lundi 21 octobre 2026 au dimanche 27 octobre 2026</div>
+      </div>
+      <div class="brand">Ribongrant Calendar</div>
+    </div>
+    <div class="grid">
+      <div class="days"><div class="gutter"></div><div class="day today">Mercredi<span class="num">21 oct.</span></div><div class="day">Jeudi<span class="num">22 oct.</span></div><div class="day">Vendredi<span class="num">23 oct.</span></div><div class="day we">Samedi<span class="num">24 oct.</span></div><div class="day we">Dimanche<span class="num">25 oct.</span></div><div class="day">Lundi<span class="num">26 oct.</span></div><div class="day">Mardi<span class="num">27 oct.</span></div></div>
+      <div class="allday"><div class="gutter">Journée</div><div class="col"><span class="chip" style="background:#1A73E8">Permanence d&#39;accueil</span></div><div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div><div class="col"></div></div>
+      <div class="body">
+        <div class="guttercol" style="height:566.90625px"><div class="hlabel" style="top:2px">06:00</div><div class="hlabel" style="top:28px;transform:translateY(-50%)">07:00</div><div class="hlabel" style="top:56px;transform:translateY(-50%)">08:00</div><div class="hlabel" style="top:84px;transform:translateY(-50%)">09:00</div><div class="hlabel" style="top:146.5px;transform:translateY(-50%)">10:00</div><div class="hlabel" style="top:174.5px;transform:translateY(-50%)">11:00</div><div class="hlabel" style="top:202.5px;transform:translateY(-50%)">12:00</div><div class="hlabel" style="top:230.5px;transform:translateY(-50%)">13:00</div><div class="hlabel" style="top:258.5px;transform:translateY(-50%)">14:00</div><div class="hlabel" style="top:287.25px;transform:translateY(-50%)">15:00</div><div class="hlabel" style="top:316px;transform:translateY(-50%)">16:00</div><div class="hlabel" style="top:344px;transform:translateY(-50%)">17:00</div><div class="hlabel" style="top:372px;transform:translateY(-50%)">18:00</div><div class="hlabel" style="top:413.453125px;transform:translateY(-50%)">19:00</div><div class="hlabel" style="top:454.90625px;transform:translateY(-50%)">20:00</div><div class="hlabel" style="top:482.90625px;transform:translateY(-50%)">21:00</div><div class="hlabel" style="top:510.90625px;transform:translateY(-50%)">22:00</div><div class="hlabel" style="top:538.90625px;transform:translateY(-50%)">23:00</div></div>
+        <div class="col" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div><div class="ev" style="left:calc(0% + 1px);width:calc(100% - 3px);top:84px;height:62.5px;border-left-color:#34A853;background:rgba(52, 168, 83, 0.14);">
+      <div class="etitle">Réunion d&#39;équipe</div>
+      <div class="who"><i class="dot" style="background:#4285F4"></i>Camille Moreau</div><div class="who"><i class="dot" style="background:#EA4335"></i>Lucas Bernard</div><div class="who"><i class="dot" style="background:#34A853"></i>Inès Petit</div><div class="who"><i class="dot" style="background:#FBBC04"></i>Hugo Lambert</div><div class="who"><i class="dot" style="background:#A142F4"></i>Léa Fontaine</div>
+      
+    </div></div><div class="col" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div><div class="ev" style="left:calc(0% + 1px);width:calc(100% - 3px);top:258.5px;height:43.125px;border-left-color:#EA4335;background:rgba(234, 67, 53, 0.14);">
+      <div class="etitle">Atelier/admin</div>
+      <div class="who"><i class="dot" style="background:#EA4335"></i>Lucas Bernard</div>
+      <div class="who more">+2 autres</div>
+    </div></div><div class="col" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div><div class="ev" style="left:calc(0% + 1px);width:calc(100% - 3px);top:70px;height:104.5px;border-left-color:#FBBC04;background:rgba(251, 188, 4, 0.14);">
+      <div class="etitle">Distribution</div>
+      <div class="who"><i class="dot" style="background:#4285F4"></i>Camille Moreau</div><div class="who"><i class="dot" style="background:#34A853"></i>Inès Petit</div><div class="who"><i class="dot" style="background:#A142F4"></i>Léa Fontaine</div><div class="who"><i class="dot" style="background:#24C1E0"></i>Nathan Roux</div>
+      
+    </div></div><div class="col we" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div><div class="ev" style="left:calc(0% + 1px);width:calc(100% - 3px);top:372px;height:62.1796875px;border-left-color:#A142F4;background:rgba(161, 66, 244, 0.14);">
+      <div class="etitle">Point mensuel</div>
+      <div class="who"><i class="dot" style="background:#4285F4"></i>Camille Moreau</div><div class="who"><i class="dot" style="background:#EA4335"></i>Lucas Bernard</div><div class="who"><i class="dot" style="background:#FBBC04"></i>Hugo Lambert</div>
+      <div class="who more">+2 autres</div>
+    </div></div><div class="col we" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div></div><div class="col" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div></div><div class="col" style="height:566.90625px"><div class="hline" style="top:28px"></div><div class="hline" style="top:56px"></div><div class="hline" style="top:84px"></div><div class="hline" style="top:146.5px"></div><div class="hline" style="top:174.5px"></div><div class="hline" style="top:202.5px"></div><div class="hline" style="top:230.5px"></div><div class="hline" style="top:258.5px"></div><div class="hline" style="top:287.25px"></div><div class="hline" style="top:316px"></div><div class="hline" style="top:344px"></div><div class="hline" style="top:372px"></div><div class="hline" style="top:413.453125px"></div><div class="hline" style="top:454.90625px"></div><div class="hline" style="top:482.90625px"></div><div class="hline" style="top:510.90625px"></div><div class="hline" style="top:538.90625px"></div><div class="hline" style="top:566.90625px"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="detail"><h2>Détail des affectations</h2><div class="dgroup"><div class="dday">Mercredi 21 octobre</div><div class="drow"><span class="dtime">Journée</span><span class="dname">Permanence d&#39;accueil</span><span class="dwho"><i class="dot" style="background:#4285F4"></i>Camille Moreau, <i class="dot" style="background:#EA4335"></i>Lucas Bernard</span></div><div class="drow"><span class="dtime">09:00–10:00</span><span class="dname">Réunion d&#39;équipe</span><span class="dwho"><i class="dot" style="background:#4285F4"></i>Camille Moreau, <i class="dot" style="background:#EA4335"></i>Lucas Bernard, <i class="dot" style="background:#34A853"></i>Inès Petit, <i class="dot" style="background:#FBBC04"></i>Hugo Lambert, <i class="dot" style="background:#A142F4"></i>Léa Fontaine</span></div></div><div class="dgroup"><div class="dday">Jeudi 22 octobre</div><div class="drow"><span class="dtime">14:00–15:30</span><span class="dname">Atelier/admin</span><span class="dwho"><i class="dot" style="background:#EA4335"></i>Lucas Bernard, <i class="dot" style="background:#34A853"></i>Inès Petit, <i class="dot" style="background:#FBBC04"></i>Hugo Lambert</span></div></div><div class="dgroup"><div class="dday">Vendredi 23 octobre</div><div class="drow"><span class="dtime">08:30–11:00</span><span class="dname">Distribution</span><span class="dwho"><i class="dot" style="background:#4285F4"></i>Camille Moreau, <i class="dot" style="background:#34A853"></i>Inès Petit, <i class="dot" style="background:#A142F4"></i>Léa Fontaine, <i class="dot" style="background:#24C1E0"></i>Nathan Roux</span></div></div><div class="dgroup"><div class="dday">Samedi 24 octobre</div><div class="drow"><span class="dtime">18:00–19:30</span><span class="dname">Point mensuel</span><span class="dwho"><i class="dot" style="background:#4285F4"></i>Camille Moreau, <i class="dot" style="background:#EA4335"></i>Lucas Bernard, <i class="dot" style="background:#FBBC04"></i>Hugo Lambert, <i class="dot" style="background:#24C1E0"></i>Nathan Roux, <i class="dot" style="background:#4285F4"></i>Chloé Garnier</span></div></div></div>
+</body>
+</html>

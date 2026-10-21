@@ -53,10 +53,11 @@
         {
           "image": "./assets/ribongrant_rounded.png",
           "imageWidth": 220,
-          "resizeMode": "contain",
+          "resizeMode": "native",
           "backgroundColor": "#FFFFFF",
           "dark": {
             "image": "./assets/ribongrant_rounded.png",
+            "resizeMode": "native",
             "backgroundColor": "#202124"
           }
         }
