@@ -342,6 +342,35 @@ app.post("/api/mission-slots/place", (req, res) => {
   res.json({ created });
 });
 
+// A snapshot of a WAL database keeps the WAL flags in its header (bytes 18 and
+// 19 are set to 2). Without the matching "-wal" file, such a database cannot be
+// opened by SQLite: it fails with "unable to open database file". Rewriting the
+// header as a plain rollback-journal database keeps the content identical and
+// makes the exported file self-contained.
+function toStandaloneDatabase(filePath) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, "r+");
+  } catch (err) {
+    console.warn("Could not rewrite the journal mode of " + filePath, err);
+    return false;
+  }
+  try {
+    const header = Buffer.alloc(20);
+    fs.readSync(fd, header, 0, 20, 0);
+    if (header[18] !== 2 && header[19] !== 2) return false;
+    header[18] = 1;
+    header[19] = 1;
+    fs.writeSync(fd, header, 0, 20, 0);
+    return true;
+  } catch (err) {
+    console.warn("Could not rewrite the journal mode of " + filePath, err);
+    return false;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 // Export database as a backup
 // The database runs in WAL mode: recent writes live in data.db-wal and are not
 // in data.db until a checkpoint happens. Copying data.db alone therefore loses
@@ -352,6 +381,7 @@ app.get("/api/db/export", async (req, res) => {
   try {
     fs.rmSync(tmpPath, { force: true });
     await db.backup(tmpPath);
+    toStandaloneDatabase(tmpPath);
 
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader("Content-Disposition", "attachment; filename=ribongrant_calendar.db");
@@ -414,6 +444,9 @@ app.post("/api/db/import", upload.single("db"), (req, res) => {
       fs.unlinkSync(uploadedFile);
       return res.status(400).json({ error: "Invalid database file" });
     }
+    // A file exported in WAL mode is attached as-is only if SQLite can create
+    // its "-wal" sidecar. Normalizing the header avoids that entirely.
+    toStandaloneDatabase(uploadedFile);
 
     db.prepare("ATTACH DATABASE ? AS src").run(uploadedFile);
     try {
